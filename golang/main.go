@@ -4,20 +4,28 @@ import (
 	"fmt"
 	"time"
 	"net/http"
+	"text/template"
 )
 
-
+const port = ":8080"
 var hidden_word []string // Variable sous forme de liste qui contient le mot caché
 var used_letters []string // Variable sous forme de liste qui contient les lettres utilisées
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "<h1>Bienvenue sur la page d'accueil!</h1>")
+func home(w http.ResponseWriter, r *http.Request) {
+	renderTemplate(w, "home")
+}
+
+func renderTemplate(w http.ResponseWriter, tmpl string) {
+	t, err := template.ParseFiles("./templates/" + tmpl + ".page.tmpl")
+	if err != nil {
+		fmt.Println("error")
+	}
+	t.Execute(w, nil)
 }
 
 func main() {
 
-	http.HandleFunc("/", handler)
-	http.ListenAndServe(":8080", nil)
+	http.HandleFunc("/", home)
 
 	PrintHangmanAscii() // Appel de la fonction pour afficher "Hangman" en ascii
 	fmt.Println("Bienvenue sur Hangman !")
@@ -28,4 +36,7 @@ func main() {
 	originalWord := WordPicker(RandomNumber()) // Initalisation du mot aléatoire a faire deviner
 	Hidden(originalWord) // Modificiton du mot généré en underscore
 	RunHangman(originalWord, tries) // Lancement du jeu
+
+	fmt.Println("(https://localhost:8080) - Serveur started on port", port)
+	http.ListenAndServe(port, nil)
 }
