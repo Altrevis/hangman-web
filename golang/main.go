@@ -1,81 +1,83 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
+	"math/rand"
 	"net/http"
+	"os"
 	"strings"
+	"time"
+	"bufio"
 )
 
 var (
-	wordToGuess = "word.txt"
-	guesses     = make(map[string]bool)
+	guesses      = make(map[string]bool)
+	wordToGuess  string
+	errorCount   int
+	hangmanState int
 )
 
-func main() {
-	http.HandleFunc("/", handler)
-	http.ListenAndServe(":8080", nil)
+var hangmanStates = []string{
+	`
+	    +---+
+	    |   |
+		|
+		|
+		|
+		|
+	==========`,
+	`
+	    +---+
+	    |   |
+	    O   |
+		|
+		|
+		|
+	==========`,
+	`
+	    +---+
+	    |   |
+	    O   |
+            |   |
+		|
+		|
+	==========`,
+	`
+	    +---+
+	    |   |
+	    O   |
+   	   /|   |
+		|
+		|
+	==========`,
+	`
+	    +---+
+	    |   |
+	    O   |
+   	   /|\  |
+		|
+		|
+	==========`,
+	`
+	    +---+
+	    |   |
+	    O   |
+   	   /|\  |
+   	   /    |
+		|
+	==========`,
+	`
+	    +---+
+	    |   |
+	    O   |
+           /|\  |
+           / \  |
+		|
+	==========`,
 }
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		r.ParseForm()
-		guess := strings.ToLower(r.FormValue("guess"))
-		guesses[guess] = true
-	}
-
-	renderTemplate(w)
-}
-
-func renderTemplate(w http.ResponseWriter) {
-	tmpl, err := template.New("index.html").Parse(`<!doctype html>
-	<html>
-	<head>
-	  <meta charset="utf-8">
-	  <meta name="keywords" content="Altrévis">
-	  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	  <!-- CSS perso-->
-	  <link rel="stylesheet" href="style.css" />
-	  <title>Hangman web rétro</title>
-	</head>
-	<body>
-	
-	  <header>
-	
-		<nav class="navbar">
-		  <div class="navbar-container container">
-			<input type="checkbox" name="" id="" />
-			<div class="hamburger-lines">
-			  <span class="line line1"></span>
-			  <span class="line line2"></span>
-			  <span class="line line3"></span>
-			</div>
-			<ul class="menu-items">
-			  <li><a href="index.html">Menu</a></li>
-			  <li><a href="rule.html">Règle</a></li>
-			</ul>
-			<h2></h2>
-		  </div>
-		</nav>
-	
-		<video autoplay muted loop>
-		  <source src="img/.mp4" type="video/mp4">
-		</video>
-	
-		<div class="content">
-		  <h1><a class="button" href="play.html">Jouer</a></h1>
-		  <h3></h3>
-		</div>
-	
-	  </header>
-	
-	</body>
-	</html>`)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
+func renderTemplate(w http.ResponseWriter, message string) {
 	wordWithState := make([]struct {
 		Letter  string
 		Guessed bool
@@ -89,9 +91,174 @@ func renderTemplate(w http.ResponseWriter) {
 	}
 
 	data := struct {
-		Word    []struct{ Letter string; Guessed bool }
-		Guesses map[string]bool
-	}{Word: wordWithState, Guesses: guesses}
+		Word        []struct{ Letter string; Guessed bool }
+		Guesses     map[string]bool
+		Message     string
+		Hangman     string
+		HangmanState int
+	}{Word: wordWithState, Guesses: guesses, Message: message, HangmanState: hangmanState, Hangman: hangmanStates[hangmanState]}
+
+	tmpl, err := template.ParseFiles("./serv/index.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	tmpl.Execute(w, data)
+}
+
+func main() {
+	wordToGuess = WordPicker(RandomNumber())
+	if wordToGuess == "" {
+		fmt.Println("Aucun mot trouvé. Arrêt du programme.")
+		return
+	}
+
+	fsServ := http.FileServer(http.Dir("serv"))
+	http.Handle("/serv/", http.StripPrefix("/serv/", fsServ))
+
+	fsImg := http.FileServer(http.Dir("img"))
+	http.Handle("/img/", http.StripPrefix("/img/", fsImg))
+
+	http.HandleFunc("/", handler)
+	http.HandleFunc("/restart", restartHandler)
+	http.HandleFunc("/nextpage", nextPageHandler)
+
+	// Ajoutez la nouvelle route pour suite.html
+	http.HandleFunc("/suite", suiteHandler)
+
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		fmt.Println("Erreur lors du démarrage du serveur:", err)
+	}
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	allGuessed := true
+	wordWithState := make([]struct {
+		Letter  string
+		Guessed bool
+	}, len(wordToGuess))
+
+	if r.Method == "POST" {
+		r.ParseForm()
+		guess := strings.ToLower(r.FormValue("guess"))
+		if _, ok := guesses[guess]; !ok && !strings.Contains(wordToGuess, guess) {
+			errorCount++
+			hangmanState++
+		}
+		if hangmanState == 6 {
+			hangmanState = 6
+		}
+		guesses[guess] = true
+	}
+
+	for i, letter := range wordToGuess {
+		wordWithState[i] = struct {
+			Letter  string
+			Guessed bool
+		}{Letter: string(letter), Guessed: guesses[strings.ToLower(string(letter))]}
+	}
+
+	for _, letterState := range wordWithState {
+		if !letterState.Guessed {
+			allGuessed = false
+			break
+		}
+	}
+
+	if allGuessed || errorCount >= 6 {
+		var message string
+		if allGuessed {
+			message = fmt.Sprintf("Félicitations ! Vous avez deviné le mot : %s", wordToGuess)
+		} else {
+			message = fmt.Sprintf("Désolé, vous avez dépassé le nombre maximal d'erreurs. Le mot était : %s", wordToGuess)
+		}
+
+		renderTemplate(w, message)
+
+		resetGame()
+
+		return
+	}
+
+	renderTemplate(w, "")
+}
+
+func resetGame() {
+	guesses = make(map[string]bool)
+	wordToGuess = WordPicker(RandomNumber())
+	errorCount = 0
+	hangmanState = 0
+}
+
+func restartHandler(w http.ResponseWriter, r *http.Request) {
+	resetGame()
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func nextPageHandler(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, "/suite", http.StatusSeeOther)
+}
+
+func suiteHandler(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("./serv/suite.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	tmpl.Execute(w, nil)
+}
+
+func WordPicker(lineNumber int) string {
+	file, err := os.Open("words.txt")
+	if err != nil {
+		fmt.Println("Erreur lors de l'ouverture du fichier words.txt:", err)
+		return ""
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	currentLine := 0
+
+	for scanner.Scan() {
+		if currentLine == lineNumber {
+			return scanner.Text()
+		}
+		currentLine++
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Erreur lors de la lecture du fichier words.txt:", err)
+	}
+
+	return ""
+}
+
+func RandomNumber() int {
+	rand.Seed(time.Now().UnixNano())
+	return rand.Intn(Counter())
+}
+
+func Counter() int {
+	file, err := os.Open("words.txt")
+	if err != nil {
+		fmt.Println("Erreur lors de l'ouverture du fichier words.txt:", err)
+		return 0
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	count := 0
+
+	for scanner.Scan() {
+		count++
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Erreur lors de la lecture du fichier words.txt:", err)
+	}
+
+	return count
 }
