@@ -1,6 +1,6 @@
 package main
 
-import (
+/*import (
 	"fmt"
 	"time"
 )
@@ -73,4 +73,4 @@ func RunHangman(word string, try int) { // Fonction majeure du jeu
 		time.Sleep(3 * time.Second)
 		Exit() // Sortie du jeu
 	}
-}
+}*/
