@@ -91,12 +91,20 @@ func renderTemplate(w http.ResponseWriter, message string) {
 	}
 
 	data := struct {
-		Word        []struct{ Letter string; Guessed bool }
-		Guesses     map[string]bool
-		Message     string
-		Hangman     string
-		HangmanState int
-	}{Word: wordWithState, Guesses: guesses, Message: message, HangmanState: hangmanState, Hangman: hangmanStates[hangmanState]}
+        Word        []struct{ Letter string; Guessed bool }
+        Guesses     map[string]bool
+        Message     string
+        Hangman     string
+        HangmanState int
+        HangmanStates []string  // Ajoutez cette ligne pour inclure les états du pendu
+    }{
+        Word:          wordWithState,
+        Guesses:       guesses,
+        Message:       message,
+        Hangman:       hangmanStates[hangmanState],
+        HangmanState:  hangmanState,
+        HangmanStates: hangmanStates,  // Ajoutez cette ligne pour inclure les états du pendu
+    }
 
 	tmpl, err := template.ParseFiles("./serv/index.html")
 	if err != nil {
@@ -123,6 +131,7 @@ func main() {
 	http.HandleFunc("/", handler)
 	http.HandleFunc("/restart", restartHandler)
 	http.HandleFunc("/nextpage", nextPageHandler)
+	http.HandleFunc("/hangman", hangmanHandler)
 
 	// Ajoutez la nouvelle route pour suite.html
 	http.HandleFunc("/suite", suiteHandler)
@@ -171,8 +180,12 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		var message string
 		if allGuessed {
 			message = fmt.Sprintf("Félicitations ! Vous avez deviné le mot : %s", wordToGuess)
+			// Redirigez vers suite(good).html sur victoire
+			http.Redirect(w, r, "/suite/good", http.StatusSeeOther)
 		} else {
 			message = fmt.Sprintf("Désolé, vous avez dépassé le nombre maximal d'erreurs. Le mot était : %s", wordToGuess)
+			// Redirigez vers suite(dead).html sur défaite
+			http.Redirect(w, r, "/suite/dead", http.StatusSeeOther)
 		}
 
 		renderTemplate(w, message)
@@ -209,6 +222,16 @@ func suiteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tmpl.Execute(w, nil)
+}
+
+func hangmanHandler(w http.ResponseWriter, r *http.Request) {
+    tmpl, err := template.ParseFiles("./serv/hangman.html")
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    tmpl.Execute(w, nil)
 }
 
 func WordPicker(lineNumber int) string {
