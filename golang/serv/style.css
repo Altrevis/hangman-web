@@ -41,13 +41,6 @@ input {
     font-size: 16px;
 }
 
-@media (max-width: 375px) {
-    input {
-        padding: 3px;
-        font-size: 10px;
-    }
-}
-
 button {
     padding: 5px 10px;
     font-size: 16px;
@@ -78,7 +71,7 @@ a:hover {
     color: #c9b37e;
 }
 
-@media (max-width: 375px) {
+@media (max-width: 600px) {
     .Hangman {
         margin-left: -150px;
     }
@@ -123,14 +116,7 @@ img {
   margin-left: 30px;
 }
 
-@media (max-width:768px) {
-    img {
-        width: 350px;
-        margin-left: -0.2px;
-    }
-}
-
-@media (max-width:375px) {
+@media (max-width:600px) {
     img {
         width: 150px;
         margin-left: -0.2px;
@@ -154,3 +140,24 @@ article.bestgame .content{
     border-radius: 15px;
     z-index: -1;
   }
+
+  .comic-table {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  .comic-cell {
+    width: 33.33%;
+    padding: 20px;
+    vertical-align: middle;
+    background-color: #f9f9f9;
+    border: 15px solid #000000;
+  }
+
+.imgsuite {
+    height: 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
