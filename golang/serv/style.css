@@ -151,8 +151,8 @@ article.bestgame .content{
     width: 33.33%;
     padding: 20px;
     vertical-align: middle;
-    background-color: #f9f9f9;
-    border: 15px solid #000000;
+    background-color: #000000;
+    border: 2px solid #000000;
   }
 
 .imgsuite {
