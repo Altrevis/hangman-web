@@ -156,7 +156,8 @@ article.bestgame .content{
   }
 
 .imgsuite {
-    height: 100%;
+    width: 900px;
+    height: 430px;
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
