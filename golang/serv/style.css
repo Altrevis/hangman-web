@@ -110,10 +110,10 @@ article.bestgame{
   }
   
 img {
-  width: 800px;
-  height: 250px; 
+  width: 830px;
+  height: 280px; 
   background-position: center;
-  margin-left: 30px;
+  margin-left: 1px;
 }
 
 @media (max-width:600px) {
