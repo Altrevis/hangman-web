@@ -145,6 +145,7 @@ article.bestgame .content{
     table-layout: fixed;
     width: 100%;
     border-collapse: collapse;
+    display: inline-block;
   }
   
   .comic-cell {
@@ -161,4 +162,17 @@ article.bestgame .content{
     background-position: center;
     background-repeat: no-repeat;
     background-size: cover;
+}
+
+.info-bulle {
+    display: none;
+    background-color: #333;
+    color: #fff;
+    padding: 10px;
+    border-radius: 5px;
+    width: 200px;
+}
+
+.comic-table:hover .info-bulle {
+    display: flex;
 }
