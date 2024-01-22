@@ -202,7 +202,7 @@ func nextPageHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func suiteHandler(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("./serv/suite1.html")
+	tmpl, err := template.ParseFiles("./serv/suite2.html")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
