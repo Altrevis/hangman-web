@@ -11,13 +11,15 @@ import (
 	"bufio"
 )
 
+// Variables globales pour suivre l'état du jeu
 var (
-	guesses      = make(map[string]bool)
-	wordToGuess  string
-	errorCount   int
-	hangmanState int
+	guesses      = make(map[string]bool) // Stocke les lettres devinées
+	wordToGuess  string                   // Mot à deviner
+	errorCount   int                      // Nombre d'erreurs
+	hangmanState int                      // État actuel du pendu (0 à 6)
 )
 
+// Images du pendu pour chaque état
 var hangmanStates = []string{
 	`
 	    +---+
@@ -77,12 +79,14 @@ var hangmanStates = []string{
 	==========`,
 }
 
+// Fonction pour afficher le template HTML
 func renderTemplate(w http.ResponseWriter, message string) {
 	wordWithState := make([]struct {
 		Letter  string
 		Guessed bool
 	}, len(wordToGuess))
 
+	// Remplir le tableau wordWithState avec les lettres devinées et non devinées
 	for i, letter := range wordToGuess {
 		wordWithState[i] = struct {
 			Letter  string
@@ -90,6 +94,7 @@ func renderTemplate(w http.ResponseWriter, message string) {
 		}{Letter: string(letter), Guessed: guesses[strings.ToLower(string(letter))]}
 	}
 
+	// Données à passer au template HTML
 	data := struct {
 		Word        []struct{ Letter string; Guessed bool }
 		Guesses     map[string]bool
@@ -98,41 +103,49 @@ func renderTemplate(w http.ResponseWriter, message string) {
 		HangmanState int
 	}{Word: wordWithState, Guesses: guesses, Message: message, HangmanState: hangmanState, Hangman: hangmanStates[hangmanState]}
 
+	// Charger le template HTML
 	tmpl, err := template.ParseFiles("./serv/index.html")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Afficher le template avec les données
 	tmpl.Execute(w, data)
 }
 
+// Fonction principale du programme
 func main() {
+	// Sélectionner un mot à deviner
 	wordToGuess = WordPicker(RandomNumber())
 	if wordToGuess == "" {
 		fmt.Println("Aucun mot trouvé. Arrêt du programme.")
 		return
 	}
 
+	// Gestion des fichiers statiques
 	fsServ := http.FileServer(http.Dir("serv"))
 	http.Handle("/serv/", http.StripPrefix("/serv/", fsServ))
 
 	fsImg := http.FileServer(http.Dir("img"))
 	http.Handle("/img/", http.StripPrefix("/img/", fsImg))
 
-	http.HandleFunc("/", handler)
-	http.HandleFunc("/restart", restartHandler)
-	http.HandleFunc("/nextpage", nextPageHandler)
+	// Définir les gestionnaires d'URL
+	http.HandleFunc("/", handler)          // Page principale du jeu
+	http.HandleFunc("/restart", restartHandler)  // Redémarrer le jeu
+	http.HandleFunc("/nextpage", nextPageHandler) // Passer à la page suivante (suite.html)
 
-	// Ajoutez la nouvelle route pour suite.html
+	// Nouvelle route pour suite.html
 	http.HandleFunc("/suite", suiteHandler)
 
+	// Démarrer le serveur HTTP
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
 		fmt.Println("Erreur lors du démarrage du serveur:", err)
 	}
 }
 
+// Gestionnaire d'URL pour la page principale du jeu
 func handler(w http.ResponseWriter, r *http.Request) {
 	allGuessed := true
 	wordWithState := make([]struct {
@@ -140,6 +153,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		Guessed bool
 	}, len(wordToGuess))
 
+	// Gérer les lettres devinées par l'utilisateur
 	if r.Method == "POST" {
 		r.ParseForm()
 		guess := strings.ToLower(r.FormValue("guess"))
@@ -153,6 +167,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		guesses[guess] = true
 	}
 
+	// Remplir le tableau wordWithState avec les lettres devinées et non devinées
 	for i, letter := range wordToGuess {
 		wordWithState[i] = struct {
 			Letter  string
@@ -160,6 +175,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}{Letter: string(letter), Guessed: guesses[strings.ToLower(string(letter))]}
 	}
 
+	// Vérifier si toutes les lettres ont été devinées ou si le nombre maximal d'erreurs a été atteint
 	for _, letterState := range wordWithState {
 		if !letterState.Guessed {
 			allGuessed = false
@@ -167,6 +183,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Afficher le message approprié et redémarrer le jeu si nécessaire
 	if allGuessed || errorCount >= 6 {
 		var message string
 		if allGuessed {
@@ -182,9 +199,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Afficher le template de jeu
 	renderTemplate(w, "")
 }
 
+// Fonction pour réinitialiser le jeu
 func resetGame() {
 	guesses = make(map[string]bool)
 	wordToGuess = WordPicker(RandomNumber())
@@ -192,15 +211,18 @@ func resetGame() {
 	hangmanState = 0
 }
 
+// Gestionnaire d'URL pour redémarrer le jeu
 func restartHandler(w http.ResponseWriter, r *http.Request) {
 	resetGame()
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
+// Gestionnaire d'URL pour passer à la page suivante (suite.html)
 func nextPageHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/suite", http.StatusSeeOther)
 }
 
+// Gestionnaire d'URL pour suite.html
 func suiteHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFiles("./serv/suite1.html")
 	if err != nil {
@@ -211,6 +233,7 @@ func suiteHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, nil)
 }
 
+// Fonction pour sélectionner un mot aléatoire dans le fichier words.txt
 func WordPicker(lineNumber int) string {
 	file, err := os.Open("words.txt")
 	if err != nil {
@@ -236,11 +259,13 @@ func WordPicker(lineNumber int) string {
 	return ""
 }
 
+// Fonction pour générer un nombre aléatoire en fonction du nombre total de mots dans le fichier words.txt
 func RandomNumber() int {
 	rand.Seed(time.Now().UnixNano())
 	return rand.Intn(Counter())
 }
 
+// Fonction pour compter le nombre total de mots dans le fichier words.txt
 func Counter() int {
 	file, err := os.Open("words.txt")
 	if err != nil {
