@@ -15,6 +15,7 @@
             <div>
                 <img src="../img/logo1.png" alt=""> 
                 <div class="content">
+                    <!--Affichage de l'emplacement du texte qui est caché-->
                 <div class="word">
                     {{range .Word}}
                         {{if .Guessed}} {{.Letter}} {{else}} _ {{end}}
@@ -26,6 +27,7 @@
                     <input type="text" class="guess" name="guess" maxlength="1" required>
                     <button type="submit">Submit</button>
                 </form>
+                <!--Affichage de lettres déjà utilisées-->
                 <div class="guessed-letters">
                     <strong><p>Guessed letters:</p></strong>
                     {{range $key, $value := .Guesses}}
@@ -33,9 +35,11 @@
                     {{end}}
                     {{if .Message}}
                         <h2>{{.Message}}</h2>
+                        <!--Affichage du bouton pour relancer une partie-->
                         <form action="/restart" method="post">
                             <button type="submit">Restart</button>
                         </form>
+                        <!--Affichage du bouton pour passer sur la page suite-->
                         <form action="/nextpage" method="post">
                             <button type="submit">Next Page</button>
                         </form>
@@ -46,7 +50,7 @@
             </div>
         </article>
     </main>
-
+<!--Affichage du hangman sur la page web-->
     <div class="Hangman">
         <pre>
         {{.Hangman}}
